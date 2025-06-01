@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Match Play</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#2c5530" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Game Setup Screen -->
+      <div id="setup-screen" class="screen active">
+        <div class="header">
+          <h1>🏌️ Golf Match Play</h1>
+        </div>
+
+        <div class="setup-section">
+          <h2>Game Type</h2>
+          <div class="game-type-buttons">
+            <button class="game-type-btn active" data-type="match">
+              Match Play
+            </button>
+            <button class="game-type-btn" data-type="nassau">Nassau</button>
+            <button class="game-type-btn" data-type="skins">Skins</button>
+          </div>
+        </div>
+
+        <div class="setup-section">
+          <h2>Players</h2>
+          <div class="player-count">
+            <button id="player-count-minus">-</button>
+            <span id="player-count">3</span>
+            <button id="player-count-plus">+</button>
+          </div>
+          <div id="player-inputs">
+            <!-- Player input fields will be generated here -->
+          </div>
+        </div>
+
+        <div class="setup-section">
+          <h2>Scoring Rules</h2>
+          <div class="scoring-rules">
+            <div class="rule-input">
+              <label>1st Place Points:</label>
+              <input type="number" id="first-points" value="2" min="0" />
+            </div>
+            <div class="rule-input">
+              <label>2nd Place Points:</label>
+              <input type="number" id="second-points" value="1" min="0" />
+            </div>
+            <div class="rule-input">
+              <label>3rd Place Points:</label>
+              <input type="number" id="third-points" value="0" min="0" />
+            </div>
+            <div class="rule-input">
+              <label>Birdie Bonus:</label>
+              <input type="number" id="birdie-bonus" value="1" min="0" />
+            </div>
+            <div class="rule-input">
+              <label>Eagle Bonus:</label>
+              <input type="number" id="eagle-bonus" value="2" min="0" />
+            </div>
+            <div class="rule-input checkbox-input">
+              <input type="checkbox" id="hio-win" />
+              <label for="hio-win">Hole-in-One Instant Win</label>
+            </div>
+          </div>
+        </div>
+
+        <button id="start-game" class="primary-btn">Start Round</button>
+      </div>
+
+      <!-- Game Screen -->
+      <div id="game-screen" class="screen">
+        <div class="game-header">
+          <div class="hole-info">
+            <h2>Hole <span id="current-hole">1</span></h2>
+            <div class="hole-details">
+              <span>Par <span id="hole-par">4</span></span>
+              <span><span id="hole-yards">358</span> yds</span>
+            </div>
+          </div>
+          <button id="menu-btn">⋮</button>
+        </div>
+
+        <div class="leaderboard">
+          <div id="players-scores">
+            <!-- Player scores will be generated here -->
+          </div>
+        </div>
+
+        <div class="score-input-section">
+          <h3>Enter Scores</h3>
+          <div id="score-inputs">
+            <!-- Score input controls will be generated here -->
+          </div>
+          <div class="hole-controls">
+            <button id="prev-hole" class="secondary-btn">← Previous</button>
+            <button id="next-hole" class="primary-btn">Next →</button>
+          </div>
+        </div>
+
+        <div class="live-stats">
+          <div id="hole-results">
+            <!-- Hole results will be displayed here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Screen -->
+      <div id="summary-screen" class="screen">
+        <div class="header">
+          <h1>Final Results</h1>
+        </div>
+
+        <div id="final-leaderboard">
+          <!-- Final results will be displayed here -->
+        </div>
+
+        <div class="summary-stats">
+          <div id="game-highlights">
+            <!-- Game highlights will be displayed here -->
+          </div>
+        </div>
+
+        <div class="summary-actions">
+          <button id="share-results" class="primary-btn">
+            📸 Share Results
+          </button>
+          <button id="new-game" class="secondary-btn">New Game</button>
+        </div>
+      </div>
+
+      <!-- Menu Modal -->
+      <div id="menu-modal" class="modal">
+        <div class="modal-content">
+          <h3>Game Menu</h3>
+          <button id="edit-hole">Edit This Hole</button>
+          <button id="view-scorecard">View Scorecard</button>
+          <button id="end-game">End Game</button>
+          <button id="close-menu">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="course-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
