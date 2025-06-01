@@ -53,12 +53,43 @@ body {
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 2px solid #e0e0e0;
+  position: relative;
 }
 
 .header h1 {
   color: #2c5530;
   font-size: 2.2em;
   font-weight: bold;
+}
+
+.header .version {
+  font-size: 0.6em;
+  color: #666;
+  font-weight: normal;
+}
+
+/* Refresh Button */
+.refresh-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: #f0f0f0;
+  transform: rotate(180deg);
+}
+
+.refresh-btn:active {
+  transform: scale(0.95) rotate(180deg);
 }
 
 .game-header {
@@ -454,6 +485,102 @@ body {
   background: #e8e8e8;
 }
 
+/* Scorecard Modal */
+.scorecard-modal-content {
+  max-width: 95vw;
+  max-height: 90vh;
+  width: auto;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+.scorecard-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.scorecard-course {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.scorecard-table {
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.scorecard-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8em;
+}
+
+.scorecard-table th,
+.scorecard-table td {
+  padding: 8px 4px;
+  text-align: center;
+  border: 1px solid #ddd;
+  min-width: 40px;
+}
+
+.scorecard-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.scorecard-table .current-hole {
+  background: #fff3cd;
+}
+
+.scorecard-table .total-row {
+  background: #f8f9fa;
+  font-weight: 600;
+}
+
+.scorecard-table .final-total {
+  background: #e8f5e8;
+  border-top: 2px solid #2c5530;
+}
+
+.scorecard-table .points-row {
+  background: #2c5530;
+  color: white;
+}
+
+.scorecard-table .under-par {
+  background: #d4edda;
+  color: #155724;
+}
+
+.scorecard-table .over-par {
+  background: #f8d7da;
+  color: #721c24;
+}
+
 /* Responsive Design */
 @media (max-width: 320px) {
   .player-input {
@@ -469,6 +596,16 @@ body {
     width: 35px;
     height: 35px;
     font-size: 1em;
+  }
+
+  .scorecard-table {
+    font-size: 0.7em;
+  }
+
+  .scorecard-table th,
+  .scorecard-table td {
+    padding: 6px 2px;
+    min-width: 35px;
   }
 }
 
@@ -490,6 +627,16 @@ body {
 
   .score-input {
     background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .modal-content {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .scorecard-table th {
+    background: #3a3a3a;
     color: #e0e0e0;
   }
 }

@@ -1,3 +1,5 @@
+const APP_VERSION = "1.3.0";
+
 class GolfApp {
   constructor() {
     this.gameState = {
@@ -24,7 +26,19 @@ class GolfApp {
   init() {
     this.setupEventListeners();
     this.generatePlayerInputs();
+    this.updateVersionDisplay();
     this.loadSavedGame();
+  }
+
+  updateVersionDisplay() {
+    // Add version to setup screen
+    const header = document.querySelector("#setup-screen .header h1");
+    if (header && !header.querySelector(".version")) {
+      const versionSpan = document.createElement("span");
+      versionSpan.className = "version";
+      versionSpan.textContent = ` v${APP_VERSION}`;
+      header.appendChild(versionSpan);
+    }
   }
 
   setupEventListeners() {
@@ -64,6 +78,11 @@ class GolfApp {
         }
       });
 
+    // Refresh button
+    document.getElementById("refresh-app").addEventListener("click", () => {
+      this.refreshApp();
+    });
+
     // Start game
     document.getElementById("start-game").addEventListener("click", () => {
       this.startGame();
@@ -87,6 +106,11 @@ class GolfApp {
       document.getElementById("menu-modal").classList.remove("active");
     });
 
+    document.getElementById("view-scorecard").addEventListener("click", () => {
+      document.getElementById("menu-modal").classList.remove("active");
+      this.showScorecard();
+    });
+
     document.getElementById("end-game").addEventListener("click", () => {
       document.getElementById("menu-modal").classList.remove("active");
       this.endGame();
@@ -100,6 +124,30 @@ class GolfApp {
     document.getElementById("share-results").addEventListener("click", () => {
       this.shareResults();
     });
+
+    // Scorecard modal close
+    document.getElementById("close-scorecard").addEventListener("click", () => {
+      document.getElementById("scorecard-modal").classList.remove("active");
+    });
+  }
+
+  refreshApp() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration) {
+          registration.update().then(() => {
+            // Force reload to get new version
+            window.location.reload();
+          });
+        } else {
+          // No service worker, just reload
+          window.location.reload();
+        }
+      });
+    } else {
+      // No service worker support, just reload
+      window.location.reload();
+    }
   }
 
   generatePlayerInputs() {
@@ -154,10 +202,28 @@ class GolfApp {
     this.gameState.currentHole = 1;
     this.gameState.holeResults = [];
 
+    // Initialize par scores for all players on all holes
+    this.initializeParScores();
+
     this.switchScreen("game-screen");
     this.updateGameDisplay();
     this.generateScoreInputs();
     this.saveGame();
+  }
+
+  // NEW METHOD: Initialize par scores for all players
+  initializeParScores() {
+    for (
+      let playerIndex = 0;
+      playerIndex < this.gameState.players.length;
+      playerIndex++
+    ) {
+      this.gameState.scores[playerIndex] = {};
+      for (let hole = 1; hole <= 18; hole++) {
+        const par = this.course.holes[hole - 1].par;
+        this.gameState.scores[playerIndex][hole] = par;
+      }
+    }
   }
 
   updateGameDisplay() {
@@ -227,8 +293,7 @@ class GolfApp {
 
     this.gameState.players.forEach((player, index) => {
       const currentScore =
-        this.gameState.scores[index][this.gameState.currentHole] ||
-        this.course.holes[this.gameState.currentHole - 1].par;
+        this.gameState.scores[index][this.gameState.currentHole];
       const par = this.course.holes[this.gameState.currentHole - 1].par;
       const scoreToPar = currentScore - par;
 
@@ -256,18 +321,16 @@ class GolfApp {
 
   adjustScore(playerIndex, adjustment) {
     const currentScore =
-      this.gameState.scores[playerIndex][this.gameState.currentHole] ||
-      this.course.holes[this.gameState.currentHole - 1].par;
+      this.gameState.scores[playerIndex][this.gameState.currentHole];
     const newScore = Math.max(1, currentScore + adjustment);
 
     this.gameState.scores[playerIndex][this.gameState.currentHole] = newScore;
-    this.recalculateAllPoints(); // Fixed: Recalculate from scratch instead of adding
+    this.recalculateAllPoints();
     this.generateScoreInputs();
     this.updateLeaderboard();
     this.saveGame();
   }
 
-  // NEW METHOD: Recalculate all points from scratch
   recalculateAllPoints() {
     // Reset points to starting values
     this.gameState.players.forEach((player, index) => {
@@ -290,14 +353,12 @@ class GolfApp {
     }
   }
 
-  // Check if all scores are entered for a specific hole
   allScoresEnteredForHole(holeNum) {
     return this.gameState.players.every(
       (_, index) => this.gameState.scores[index][holeNum] !== undefined
     );
   }
 
-  // Calculate points for a specific hole
   calculatePointsForHole(holeNum) {
     const holeScores = this.gameState.players.map((player, index) => ({
       playerIndex: index,
@@ -383,12 +444,6 @@ class GolfApp {
     };
   }
 
-  // OLD METHOD - REMOVED
-  calculateHolePoints() {
-    // This method is replaced by recalculateAllPoints()
-    return;
-  }
-
   allScoresEntered() {
     return this.allScoresEnteredForHole(this.gameState.currentHole);
   }
@@ -425,18 +480,18 @@ class GolfApp {
   navigateHole(direction) {
     const newHole = this.gameState.currentHole + direction;
 
-    if (newHole < 1 || newHole > 18) return;
-
-    // Special handling for "Finish Round" button
+    // FIXED: Proper handling for finish round
     if (this.gameState.currentHole === 18 && direction === 1) {
       this.endGame();
       return;
     }
 
+    if (newHole < 1 || newHole > 18) return;
+
     this.gameState.currentHole = newHole;
     this.updateGameDisplay();
     this.generateScoreInputs();
-    this.displayHoleResults(); // Show results for the new hole
+    this.displayHoleResults();
     this.saveGame();
   }
 
@@ -450,6 +505,175 @@ class GolfApp {
     } else {
       nextBtn.textContent = "Next →";
     }
+  }
+
+  // NEW METHOD: Show scorecard
+  showScorecard() {
+    const modal = document.getElementById("scorecard-modal");
+    const container = document.getElementById("scorecard-content");
+
+    // Generate scorecard table
+    let scorecardHTML = `
+      <div class="scorecard-header">
+        <h3>Scorecard</h3>
+        <div class="scorecard-course">${this.course.name}</div>
+      </div>
+      <div class="scorecard-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Hole</th>
+              <th>Par</th>
+              <th>Yds</th>
+              ${this.gameState.players
+                .map((player) => `<th>${player.name}</th>`)
+                .join("")}
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    // Front 9
+    for (let hole = 1; hole <= 9; hole++) {
+      const holeData = this.course.holes[hole - 1];
+      scorecardHTML += `
+        <tr class="${
+          hole === this.gameState.currentHole ? "current-hole" : ""
+        }">
+          <td>${hole}</td>
+          <td>${holeData.par}</td>
+          <td>${holeData.yards}</td>
+          ${this.gameState.players
+            .map((_, index) => {
+              const score = this.gameState.scores[index][hole];
+              const par = holeData.par;
+              const scoreToPar = score - par;
+              let className = "";
+              if (scoreToPar < 0) className = "under-par";
+              else if (scoreToPar > 0) className = "over-par";
+              return `<td class="${className}">${score}</td>`;
+            })
+            .join("")}
+        </tr>
+      `;
+    }
+
+    // Front 9 totals
+    scorecardHTML += `
+      <tr class="total-row">
+        <td><strong>Out</strong></td>
+        <td><strong>${this.course.holes
+          .slice(0, 9)
+          .reduce((sum, h) => sum + h.par, 0)}</strong></td>
+        <td><strong>${this.course.holes
+          .slice(0, 9)
+          .reduce((sum, h) => sum + h.yards, 0)}</strong></td>
+        ${this.gameState.players
+          .map((_, index) => {
+            const frontNine = this.course.holes
+              .slice(0, 9)
+              .reduce((sum, _, holeIndex) => {
+                return sum + (this.gameState.scores[index][holeIndex + 1] || 0);
+              }, 0);
+            return `<td><strong>${frontNine}</strong></td>`;
+          })
+          .join("")}
+      </tr>
+    `;
+
+    // Back 9
+    for (let hole = 10; hole <= 18; hole++) {
+      const holeData = this.course.holes[hole - 1];
+      scorecardHTML += `
+        <tr class="${
+          hole === this.gameState.currentHole ? "current-hole" : ""
+        }">
+          <td>${hole}</td>
+          <td>${holeData.par}</td>
+          <td>${holeData.yards}</td>
+          ${this.gameState.players
+            .map((_, index) => {
+              const score = this.gameState.scores[index][hole];
+              const par = holeData.par;
+              const scoreToPar = score - par;
+              let className = "";
+              if (scoreToPar < 0) className = "under-par";
+              else if (scoreToPar > 0) className = "over-par";
+              return `<td class="${className}">${score}</td>`;
+            })
+            .join("")}
+        </tr>
+      `;
+    }
+
+    // Back 9 totals
+    scorecardHTML += `
+      <tr class="total-row">
+        <td><strong>In</strong></td>
+        <td><strong>${this.course.holes
+          .slice(9, 18)
+          .reduce((sum, h) => sum + h.par, 0)}</strong></td>
+        <td><strong>${this.course.holes
+          .slice(9, 18)
+          .reduce((sum, h) => sum + h.yards, 0)}</strong></td>
+        ${this.gameState.players
+          .map((_, index) => {
+            const backNine = this.course.holes
+              .slice(9, 18)
+              .reduce((sum, _, holeIndex) => {
+                return (
+                  sum + (this.gameState.scores[index][holeIndex + 10] || 0)
+                );
+              }, 0);
+            return `<td><strong>${backNine}</strong></td>`;
+          })
+          .join("")}
+      </tr>
+    `;
+
+    // Total scores
+    scorecardHTML += `
+      <tr class="total-row final-total">
+        <td><strong>Total</strong></td>
+        <td><strong>${this.course.holes.reduce(
+          (sum, h) => sum + h.par,
+          0
+        )}</strong></td>
+        <td><strong>${this.course.holes.reduce(
+          (sum, h) => sum + h.yards,
+          0
+        )}</strong></td>
+        ${this.gameState.players
+          .map((_, index) => {
+            const total = this.course.holes.reduce((sum, _, holeIndex) => {
+              return sum + (this.gameState.scores[index][holeIndex + 1] || 0);
+            }, 0);
+            return `<td><strong>${total}</strong></td>`;
+          })
+          .join("")}
+      </tr>
+    `;
+
+    // Points row
+    scorecardHTML += `
+      <tr class="points-row">
+        <td colspan="3"><strong>Points</strong></td>
+        ${this.gameState.players
+          .map((_, index) => {
+            return `<td><strong>${this.gameState.points[index]}</strong></td>`;
+          })
+          .join("")}
+      </tr>
+    `;
+
+    scorecardHTML += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = scorecardHTML;
+    modal.classList.add("active");
   }
 
   checkHotStreak(playerIndex) {
@@ -579,7 +803,8 @@ class GolfApp {
         .map((player, i) => `${i + 1}. ${player.name}: ${player.points} pts`)
         .join("\n") +
       `\n\nGame Type: ${this.gameState.gameType.toUpperCase()}` +
-      `\nCourse: ${this.course.name}`;
+      `\nCourse: ${this.course.name}` +
+      `\nApp Version: ${APP_VERSION}`;
 
     if (navigator.share) {
       navigator.share({
@@ -645,7 +870,12 @@ class GolfApp {
   }
 
   saveGame() {
-    localStorage.setItem("golfAppSave", JSON.stringify(this.gameState));
+    const saveData = {
+      ...this.gameState,
+      version: APP_VERSION,
+      timestamp: new Date().toISOString(),
+    };
+    localStorage.setItem("golfAppSave", JSON.stringify(saveData));
   }
 
   loadSavedGame() {
@@ -670,12 +900,30 @@ class GolfApp {
   }
 }
 
-// PWA Service Worker Registration
+// PWA Service Worker Registration with version handling
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
-      .then((registration) => console.log("SW registered"))
+      .then((registration) => {
+        console.log("SW registered with version:", APP_VERSION);
+
+        // Check for updates
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener("statechange", () => {
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              // New version available
+              if (confirm("New version available! Refresh to update?")) {
+                window.location.reload();
+              }
+            }
+          });
+        });
+      })
       .catch((error) => console.log("SW registration failed"));
   });
 }

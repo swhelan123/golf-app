@@ -20,6 +20,9 @@
       <div id="setup-screen" class="screen active">
         <div class="header">
           <h1>🏌️ Golf Match Play</h1>
+          <button id="refresh-app" class="refresh-btn" title="Refresh App">
+            🔄
+          </button>
         </div>
 
         <div class="setup-section">
@@ -147,6 +150,19 @@
           <button id="view-scorecard">View Scorecard</button>
           <button id="end-game">End Game</button>
           <button id="close-menu">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Scorecard Modal -->
+      <div id="scorecard-modal" class="modal">
+        <div class="modal-content scorecard-modal-content">
+          <div class="modal-header">
+            <h3>Scorecard</h3>
+            <button id="close-scorecard" class="close-btn">×</button>
+          </div>
+          <div id="scorecard-content">
+            <!-- Scorecard will be generated here -->
+          </div>
         </div>
       </div>
     </div>
