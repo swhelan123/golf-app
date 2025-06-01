@@ -88,6 +88,7 @@ class GolfApp {
     });
 
     document.getElementById("end-game").addEventListener("click", () => {
+      document.getElementById("menu-modal").classList.remove("active");
       this.endGame();
     });
 
@@ -110,12 +111,12 @@ class GolfApp {
       const playerDiv = document.createElement("div");
       playerDiv.className = "player-input";
       playerDiv.innerHTML = `
-                <input type="text" placeholder="Player ${
-                  i + 1
-                }" id="player-name-${i}">
-                <label>Start:</label>
-                <input type="number" value="0" id="player-start-${i}">
-            `;
+              <input type="text" placeholder="Player ${
+                i + 1
+              }" id="player-name-${i}">
+              <label>Start:</label>
+              <input type="number" value="0" id="player-start-${i}">
+          `;
       container.appendChild(playerDiv);
     }
   }
@@ -148,6 +149,10 @@ class GolfApp {
       eagleBonus: parseInt(document.getElementById("eagle-bonus").value),
       hioWin: document.getElementById("hio-win").checked,
     };
+
+    // Reset game state
+    this.gameState.currentHole = 1;
+    this.gameState.holeResults = [];
 
     this.switchScreen("game-screen");
     this.updateGameDisplay();
@@ -197,18 +202,20 @@ class GolfApp {
 
       if (currentHoleScore !== undefined) {
         const scoreToPar = currentHoleScore - par;
-        if (scoreToPar < 0) statusText = `${Math.abs(scoreToPar)} under`;
-        else if (scoreToPar > 0) statusText = `${scoreToPar} over`;
+        if (scoreToPar < 0) statusText = `${Math.abs(scoreToPar)} under par`;
+        else if (scoreToPar > 0) statusText = `${scoreToPar} over par`;
         else statusText = "Even par";
+      } else {
+        statusText = "No score entered";
       }
 
       playerDiv.innerHTML = `
-                <div class="player-info">
-                    <div class="player-name">${player.name}</div>
-                    <div class="player-status">${statusText}</div>
-                </div>
-                <div class="player-points">${player.points}</div>
-            `;
+              <div class="player-info">
+                  <div class="player-name">${player.name}</div>
+                  <div class="player-status">${statusText}</div>
+              </div>
+              <div class="player-points">${player.points}</div>
+          `;
 
       container.appendChild(playerDiv);
     });
@@ -228,20 +235,20 @@ class GolfApp {
       const scoreDiv = document.createElement("div");
       scoreDiv.className = "score-input";
       scoreDiv.innerHTML = `
-                <div class="player-info">
-                    <div class="player-name">${player.name}</div>
-                </div>
-                <div class="score-controls">
-                    <button class="score-btn minus" onclick="app.adjustScore(${index}, -1)">−</button>
-                    <div class="score-display">
-                        <div>${currentScore}</div>
-                        <div class="par-indicator">${
-                          scoreToPar >= 0 ? "+" : ""
-                        }${scoreToPar}</div>
-                    </div>
-                    <button class="score-btn plus" onclick="app.adjustScore(${index}, 1)">+</button>
-                </div>
-            `;
+              <div class="player-info">
+                  <div class="player-name">${player.name}</div>
+              </div>
+              <div class="score-controls">
+                  <button class="score-btn minus" onclick="app.adjustScore(${index}, -1)">−</button>
+                  <div class="score-display">
+                      <div>${currentScore}</div>
+                      <div class="par-indicator">${
+                        scoreToPar >= 0 ? "+" : ""
+                      }${scoreToPar}</div>
+                  </div>
+                  <button class="score-btn plus" onclick="app.adjustScore(${index}, 1)">+</button>
+              </div>
+          `;
 
       container.appendChild(scoreDiv);
     });
@@ -367,22 +374,22 @@ class GolfApp {
     if (!holeResult) return;
 
     container.innerHTML = `
-            <div class="hole-result">
-                <h4>Hole ${holeResult.hole} Results</h4>
-                <div class="result-breakdown">
-                    ${holeResult.results
-                      .map(
-                        (result) => `
-                        <div class="result-item">
-                            <span>${result.player}: ${result.score}</span>
-                            <span>+${result.points} pts</span>
-                        </div>
-                    `
-                      )
-                      .join("")}
-                </div>
-            </div>
-        `;
+          <div class="hole-result">
+              <h4>Hole ${holeResult.hole} Results</h4>
+              <div class="result-breakdown">
+                  ${holeResult.results
+                    .map(
+                      (result) => `
+                      <div class="result-item">
+                          <span>${result.player}: ${result.score}</span>
+                          <span>+${result.points} pts</span>
+                      </div>
+                  `
+                    )
+                    .join("")}
+              </div>
+          </div>
+      `;
   }
 
   navigateHole(direction) {
@@ -390,27 +397,15 @@ class GolfApp {
 
     if (newHole < 1 || newHole > 18) return;
 
+    // Special handling for "Finish Round" button
+    if (this.gameState.currentHole === 18 && direction === 1) {
+      this.endGame();
+      return;
+    }
+
     this.gameState.currentHole = newHole;
     this.updateGameDisplay();
     this.generateScoreInputs();
-
-    if (newHole === 18 && this.allScoresEntered()) {
-      // Check if all holes are complete
-      const allHolesComplete = Array.from(
-        { length: 18 },
-        (_, i) => i + 1
-      ).every((hole) =>
-        this.gameState.players.every(
-          (_, playerIndex) =>
-            this.gameState.scores[playerIndex][hole] !== undefined
-        )
-      );
-
-      if (allHolesComplete) {
-        this.endGame();
-      }
-    }
-
     this.saveGame();
   }
 
@@ -464,18 +459,14 @@ class GolfApp {
     container.innerHTML = results
       .map(
         (player, position) => `
-            <div class="player-score ${position === 0 ? "leader" : ""}">
-                <div class="player-info">
-                    <div class="player-name">${position + 1}. ${
-          player.name
-        }</div>
-                    <div class="player-status">${
-                      player.holesWon
-                    } holes won</div>
-                </div>
-                <div class="player-points">${player.totalPoints} pts</div>
-            </div>
-        `
+          <div class="player-score ${position === 0 ? "leader" : ""}">
+              <div class="player-info">
+                  <div class="player-name">${position + 1}. ${player.name}</div>
+                  <div class="player-status">${player.holesWon} holes won</div>
+              </div>
+              <div class="player-points">${player.totalPoints} pts</div>
+          </div>
+      `
       )
       .join("");
   }
@@ -491,24 +482,24 @@ class GolfApp {
     );
 
     container.innerHTML = `
-            <div class="hole-result">
-                <h4>🏆 Game Highlights</h4>
-                <div class="result-breakdown">
-                    <div class="result-item">
-                        <span>Winner:</span>
-                        <span>${winner.name}</span>
-                    </div>
-                    <div class="result-item">
-                        <span>Most Holes Won:</span>
-                        <span>${mostHoles.name} (${mostHoles.holesWon})</span>
-                    </div>
-                    <div class="result-item">
-                        <span>Best Streak:</span>
-                        <span>${bestStreak.name} (${bestStreak.bestStreak})</span>
-                    </div>
-                </div>
-            </div>
-        `;
+          <div class="hole-result">
+              <h4>🏆 Game Highlights</h4>
+              <div class="result-breakdown">
+                  <div class="result-item">
+                      <span>Winner:</span>
+                      <span>${winner.name}</span>
+                  </div>
+                  <div class="result-item">
+                      <span>Most Holes Won:</span>
+                      <span>${mostHoles.name} (${mostHoles.holesWon})</span>
+                  </div>
+                  <div class="result-item">
+                      <span>Best Streak:</span>
+                      <span>${bestStreak.name} (${bestStreak.bestStreak})</span>
+                  </div>
+              </div>
+          </div>
+      `;
   }
 
   getHolesWon(playerIndex) {
@@ -574,6 +565,10 @@ class GolfApp {
 
   newGame() {
     if (confirm("Start a new game? Current progress will be lost.")) {
+      // Clear localStorage completely
+      localStorage.removeItem("golfAppSave");
+
+      // Reset all game state
       this.gameState = {
         gameType: "match",
         players: [],
@@ -590,7 +585,23 @@ class GolfApp {
           hioWin: false,
         },
       };
-      localStorage.removeItem("golfAppSave");
+
+      // Reset UI to default values
+      document.getElementById("player-count").textContent = "3";
+      document
+        .querySelectorAll(".game-type-btn")
+        .forEach((btn) => btn.classList.remove("active"));
+      document
+        .querySelector('.game-type-btn[data-type="match"]')
+        .classList.add("active");
+      document.getElementById("first-points").value = "2";
+      document.getElementById("second-points").value = "1";
+      document.getElementById("third-points").value = "0";
+      document.getElementById("birdie-bonus").value = "1";
+      document.getElementById("eagle-bonus").value = "2";
+      document.getElementById("hio-win").checked = false;
+
+      this.generatePlayerInputs();
       this.switchScreen("setup-screen");
     }
   }
@@ -621,6 +632,7 @@ class GolfApp {
         }
       } catch (e) {
         console.error("Error loading saved game:", e);
+        localStorage.removeItem("golfAppSave");
       }
     }
   }
