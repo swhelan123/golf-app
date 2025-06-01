@@ -60,7 +60,6 @@ body {
   color: #2c5530;
   font-size: 2.2em;
   font-weight: bold;
-  margin-right: 50px; /* Make room for refresh button */
 }
 
 .header .version {
@@ -69,36 +68,28 @@ body {
   font-weight: normal;
 }
 
-/* Improved Refresh Button */
+/* Refresh Button */
 .refresh-btn {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  background: #f8f9fa;
-  border: 2px solid #ddd;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.2em;
   color: #666;
-  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s;
 }
 
 .refresh-btn:hover {
-  background: #e9ecef;
-  border-color: #2c5530;
-  color: #2c5530;
+  background: #f0f0f0;
   transform: rotate(180deg);
 }
 
 .refresh-btn:active {
   transform: scale(0.95) rotate(180deg);
-  background: #2c5530;
-  color: white;
 }
 
 .game-header {
@@ -494,7 +485,7 @@ body {
   background: #e8e8e8;
 }
 
-/* Enhanced Scorecard Modal */
+/* Scorecard Modal */
 .scorecard-modal-content {
   max-width: 95vw;
   max-height: 90vh;
@@ -531,44 +522,12 @@ body {
 .scorecard-course {
   color: #666;
   font-size: 0.9em;
-  margin-top: 5px;
 }
 
-.scorecard-game-info {
-  color: #888;
-  font-size: 0.8em;
-  margin-top: 3px;
-}
-
-/* NEW: Scorecard Stats Section */
-.scorecard-stats {
-  margin-bottom: 20px;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
-}
-
-.player-stat {
-  text-align: center;
-  padding: 10px;
-  background: white;
-  border-radius: 6px;
-  border-left: 4px solid #2c5530;
-  font-size: 0.9em;
-}
-
-/* Enhanced Scorecard Table */
 .scorecard-table {
   overflow-x: auto;
   max-height: 60vh;
   overflow-y: auto;
-  margin-bottom: 20px;
 }
 
 .scorecard-table table {
@@ -598,4 +557,86 @@ body {
 }
 
 .scorecard-table .total-row {
-  background: #f8f
+  background: #f8f9fa;
+  font-weight: 600;
+}
+
+.scorecard-table .final-total {
+  background: #e8f5e8;
+  border-top: 2px solid #2c5530;
+}
+
+.scorecard-table .points-row {
+  background: #2c5530;
+  color: white;
+}
+
+.scorecard-table .under-par {
+  background: #d4edda;
+  color: #155724;
+}
+
+.scorecard-table .over-par {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Responsive Design */
+@media (max-width: 320px) {
+  .player-input {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .score-controls {
+    gap: 10px;
+  }
+
+  .score-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 1em;
+  }
+
+  .scorecard-table {
+    font-size: 0.7em;
+  }
+
+  .scorecard-table th,
+  .scorecard-table td {
+    padding: 6px 2px;
+    min-width: 35px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(135deg, #1a2f1d 0%, #2c4530 100%);
+  }
+
+  #app {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+
+  .player-score {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .score-input {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .modal-content {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .scorecard-table th {
+    background: #3a3a3a;
+    color: #e0e0e0;
+  }
+}
