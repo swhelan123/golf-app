@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 
 class GolfApp {
   constructor() {
@@ -125,10 +125,16 @@ class GolfApp {
       this.shareResults();
     });
 
-    // Scorecard modal close
+    // Scorecard modal close and export
     document.getElementById("close-scorecard").addEventListener("click", () => {
       document.getElementById("scorecard-modal").classList.remove("active");
     });
+
+    document
+      .getElementById("export-scorecard")
+      .addEventListener("click", () => {
+        this.exportScorecard();
+      });
   }
 
   refreshApp() {
@@ -136,8 +142,10 @@ class GolfApp {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration) {
           registration.update().then(() => {
-            // Force reload to get new version
-            window.location.reload();
+            // Show update notification
+            if (confirm("App updated! Reload to get the latest version?")) {
+              window.location.reload();
+            }
           });
         } else {
           // No service worker, just reload
@@ -211,7 +219,7 @@ class GolfApp {
     this.saveGame();
   }
 
-  // NEW METHOD: Initialize par scores for all players
+  // Initialize par scores for all players
   initializeParScores() {
     for (
       let playerIndex = 0;
@@ -224,6 +232,8 @@ class GolfApp {
         this.gameState.scores[playerIndex][hole] = par;
       }
     }
+    // Calculate points for all holes with par scores
+    this.recalculateAllPoints();
   }
 
   updateGameDisplay() {
@@ -247,6 +257,8 @@ class GolfApp {
         ...player,
         index,
         points: this.gameState.points[index],
+        totalScore: this.getTotalScore(index),
+        scoreToPar: this.getScoreToPar(index),
       }))
       .sort((a, b) => b.points - a.points);
 
@@ -275,16 +287,44 @@ class GolfApp {
         statusText = "No score entered";
       }
 
+      // Add running total display
+      const totalDisplay =
+        player.totalScore > 0 ? ` • Total: ${player.totalScore}` : "";
+
       playerDiv.innerHTML = `
               <div class="player-info">
                   <div class="player-name">${player.name}</div>
-                  <div class="player-status">${statusText}</div>
+                  <div class="player-status">${statusText}${totalDisplay}</div>
               </div>
               <div class="player-points">${player.points}</div>
           `;
 
       container.appendChild(playerDiv);
     });
+  }
+
+  // NEW: Calculate total score for a player
+  getTotalScore(playerIndex) {
+    let total = 0;
+    for (let hole = 1; hole <= this.gameState.currentHole; hole++) {
+      if (this.gameState.scores[playerIndex][hole] !== undefined) {
+        total += this.gameState.scores[playerIndex][hole];
+      }
+    }
+    return total;
+  }
+
+  // NEW: Calculate score to par for completed holes
+  getScoreToPar(playerIndex) {
+    let totalPar = 0;
+    let totalScore = 0;
+    for (let hole = 1; hole <= this.gameState.currentHole; hole++) {
+      if (this.gameState.scores[playerIndex][hole] !== undefined) {
+        totalPar += this.course.holes[hole - 1].par;
+        totalScore += this.gameState.scores[playerIndex][hole];
+      }
+    }
+    return totalScore - totalPar;
   }
 
   generateScoreInputs() {
@@ -327,7 +367,7 @@ class GolfApp {
     this.gameState.scores[playerIndex][this.gameState.currentHole] = newScore;
     this.recalculateAllPoints();
     this.generateScoreInputs();
-    this.updateLeaderboard();
+    this.updateLeaderboard(); // This will now show updated running totals
     this.saveGame();
   }
 
@@ -340,23 +380,15 @@ class GolfApp {
     // Clear hole results
     this.gameState.holeResults = [];
 
-    // Recalculate points for each completed hole
-    for (let holeNum = 1; holeNum <= 18; holeNum++) {
-      if (this.allScoresEnteredForHole(holeNum)) {
-        this.calculatePointsForHole(holeNum);
-      }
+    // Recalculate points for each hole up to current hole
+    for (let holeNum = 1; holeNum <= this.gameState.currentHole; holeNum++) {
+      this.calculatePointsForHole(holeNum);
     }
 
     // Display current hole results if they exist
     if (this.gameState.holeResults[this.gameState.currentHole - 1]) {
       this.displayHoleResults();
     }
-  }
-
-  allScoresEnteredForHole(holeNum) {
-    return this.gameState.players.every(
-      (_, index) => this.gameState.scores[index][holeNum] !== undefined
-    );
   }
 
   calculatePointsForHole(holeNum) {
@@ -444,10 +476,6 @@ class GolfApp {
     };
   }
 
-  allScoresEntered() {
-    return this.allScoresEnteredForHole(this.gameState.currentHole);
-  }
-
   displayHoleResults() {
     const container = document.getElementById("hole-results");
     const holeResult =
@@ -480,7 +508,7 @@ class GolfApp {
   navigateHole(direction) {
     const newHole = this.gameState.currentHole + direction;
 
-    // FIXED: Proper handling for finish round
+    // Handle finish round
     if (this.gameState.currentHole === 18 && direction === 1) {
       this.endGame();
       return;
@@ -489,6 +517,10 @@ class GolfApp {
     if (newHole < 1 || newHole > 18) return;
 
     this.gameState.currentHole = newHole;
+
+    // Recalculate points up to current hole to show live updates
+    this.recalculateAllPoints();
+
     this.updateGameDisplay();
     this.generateScoreInputs();
     this.displayHoleResults();
@@ -507,17 +539,46 @@ class GolfApp {
     }
   }
 
-  // NEW METHOD: Show scorecard
+  // Enhanced scorecard with more details
   showScorecard() {
     const modal = document.getElementById("scorecard-modal");
     const container = document.getElementById("scorecard-content");
 
-    // Generate scorecard table
+    // Calculate stats for enhanced scorecard
+    const stats = this.calculateDetailedStats();
+
+    // Generate enhanced scorecard table
     let scorecardHTML = `
       <div class="scorecard-header">
-        <h3>Scorecard</h3>
-        <div class="scorecard-course">${this.course.name}</div>
+        <h3>📊 Detailed Scorecard</h3>
+        <div class="scorecard-course">${
+          this.course.name
+        } • ${new Date().toLocaleDateString()}</div>
+        <div class="scorecard-game-info">
+          Game Type: ${this.gameState.gameType.toUpperCase()} • Hole ${
+      this.gameState.currentHole
+    }/18
+        </div>
       </div>
+      
+      <div class="scorecard-stats">
+        <div class="stat-grid">
+          ${this.gameState.players
+            .map(
+              (player, index) => `
+            <div class="player-stat">
+              <strong>${player.name}</strong><br>
+              Total: ${stats.totals[index]} (${
+                stats.toPar[index] >= 0 ? "+" : ""
+              }${stats.toPar[index]})<br>
+              Points: ${this.gameState.points[index]}
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+      </div>
+
       <div class="scorecard-table">
         <table>
           <thead>
@@ -525,6 +586,7 @@ class GolfApp {
               <th>Hole</th>
               <th>Par</th>
               <th>Yds</th>
+              <th>HCP</th>
               ${this.gameState.players
                 .map((player) => `<th>${player.name}</th>`)
                 .join("")}
@@ -540,9 +602,10 @@ class GolfApp {
         <tr class="${
           hole === this.gameState.currentHole ? "current-hole" : ""
         }">
-          <td>${hole}</td>
+          <td><strong>${hole}</strong></td>
           <td>${holeData.par}</td>
           <td>${holeData.yards}</td>
+          <td>${holeData.hcp}</td>
           ${this.gameState.players
             .map((_, index) => {
               const score = this.gameState.scores[index][hole];
@@ -551,6 +614,7 @@ class GolfApp {
               let className = "";
               if (scoreToPar < 0) className = "under-par";
               else if (scoreToPar > 0) className = "over-par";
+              else className = "even-par";
               return `<td class="${className}">${score}</td>`;
             })
             .join("")}
@@ -568,6 +632,7 @@ class GolfApp {
         <td><strong>${this.course.holes
           .slice(0, 9)
           .reduce((sum, h) => sum + h.yards, 0)}</strong></td>
+        <td>-</td>
         ${this.gameState.players
           .map((_, index) => {
             const frontNine = this.course.holes
@@ -588,9 +653,10 @@ class GolfApp {
         <tr class="${
           hole === this.gameState.currentHole ? "current-hole" : ""
         }">
-          <td>${hole}</td>
+          <td><strong>${hole}</strong></td>
           <td>${holeData.par}</td>
           <td>${holeData.yards}</td>
+          <td>${holeData.hcp}</td>
           ${this.gameState.players
             .map((_, index) => {
               const score = this.gameState.scores[index][hole];
@@ -599,6 +665,7 @@ class GolfApp {
               let className = "";
               if (scoreToPar < 0) className = "under-par";
               else if (scoreToPar > 0) className = "over-par";
+              else className = "even-par";
               return `<td class="${className}">${score}</td>`;
             })
             .join("")}
@@ -616,6 +683,7 @@ class GolfApp {
         <td><strong>${this.course.holes
           .slice(9, 18)
           .reduce((sum, h) => sum + h.yards, 0)}</strong></td>
+        <td>-</td>
         ${this.gameState.players
           .map((_, index) => {
             const backNine = this.course.holes
@@ -643,12 +711,10 @@ class GolfApp {
           (sum, h) => sum + h.yards,
           0
         )}</strong></td>
+        <td>-</td>
         ${this.gameState.players
           .map((_, index) => {
-            const total = this.course.holes.reduce((sum, _, holeIndex) => {
-              return sum + (this.gameState.scores[index][holeIndex + 1] || 0);
-            }, 0);
-            return `<td><strong>${total}</strong></td>`;
+            return `<td><strong>${stats.totals[index]}</strong></td>`;
           })
           .join("")}
       </tr>
@@ -657,7 +723,7 @@ class GolfApp {
     // Points row
     scorecardHTML += `
       <tr class="points-row">
-        <td colspan="3"><strong>Points</strong></td>
+        <td colspan="4"><strong>Match Points</strong></td>
         ${this.gameState.players
           .map((_, index) => {
             return `<td><strong>${this.gameState.points[index]}</strong></td>`;
@@ -670,10 +736,112 @@ class GolfApp {
           </tbody>
         </table>
       </div>
+      
+      <div class="export-section">
+        <button id="export-scorecard" class="primary-btn">📸 Save Scorecard as Image</button>
+      </div>
     `;
 
     container.innerHTML = scorecardHTML;
     modal.classList.add("active");
+
+    // Re-attach export event listener
+    document
+      .getElementById("export-scorecard")
+      .addEventListener("click", () => {
+        this.exportScorecard();
+      });
+  }
+
+  // NEW: Calculate detailed stats
+  calculateDetailedStats() {
+    const totals = [];
+    const toPar = [];
+
+    this.gameState.players.forEach((_, index) => {
+      let total = 0;
+      let parTotal = 0;
+
+      for (let hole = 1; hole <= 18; hole++) {
+        const score = this.gameState.scores[index][hole] || 0;
+        const par = this.course.holes[hole - 1].par;
+        total += score;
+        parTotal += par;
+      }
+
+      totals.push(total);
+      toPar.push(total - parTotal);
+    });
+
+    return { totals, toPar };
+  }
+
+  // NEW: Export scorecard as image
+  async exportScorecard() {
+    try {
+      // Use html2canvas library if available, otherwise use built-in screenshot API
+      const scorecardElement = document.querySelector(
+        ".scorecard-modal-content"
+      );
+
+      if (window.html2canvas) {
+        // If html2canvas is loaded
+        const canvas = await html2canvas(scorecardElement, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+        });
+
+        // Create download link
+        const link = document.createElement("a");
+        link.download = `golf-scorecard-${
+          new Date().toISOString().split("T")[0]
+        }.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      } else {
+        // Fallback: Try to use Web Share API with screenshot
+        if (navigator.share && navigator.canShare) {
+          const data = {
+            title: "Golf Scorecard",
+            text: this.generateScorecardText(),
+          };
+
+          if (navigator.canShare(data)) {
+            await navigator.share(data);
+          }
+        } else {
+          // Final fallback: Copy scorecard text
+          const text = this.generateScorecardText();
+          await navigator.clipboard.writeText(text);
+          alert("Scorecard data copied to clipboard!");
+        }
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      // Fallback to text export
+      const text = this.generateScorecardText();
+      await navigator.clipboard.writeText(text);
+      alert("Scorecard data copied to clipboard!");
+    }
+  }
+
+  // NEW: Generate scorecard as text
+  generateScorecardText() {
+    const stats = this.calculateDetailedStats();
+    let text = `🏌️ Golf Scorecard - ${this.course.name}\n`;
+    text += `Date: ${new Date().toLocaleDateString()}\n`;
+    text += `Game: ${this.gameState.gameType.toUpperCase()}\n\n`;
+
+    // Player summary
+    this.gameState.players.forEach((player, index) => {
+      text += `${player.name}: ${stats.totals[index]} (${
+        stats.toPar[index] >= 0 ? "+" : ""
+      }${stats.toPar[index]}) - ${this.gameState.points[index]} pts\n`;
+    });
+
+    text += `\nGenerated by Golf Match Play v${APP_VERSION}`;
+    return text;
   }
 
   checkHotStreak(playerIndex) {

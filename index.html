@@ -13,6 +13,13 @@
       content="black-translucent"
     />
     <link rel="apple-touch-icon" href="icon-192.png" />
+    <!-- FontAwesome CDN for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <!-- html2canvas for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   </head>
   <body>
     <div id="app">
@@ -20,8 +27,8 @@
       <div id="setup-screen" class="screen active">
         <div class="header">
           <h1>🏌️ Golf Match Play</h1>
-          <button id="refresh-app" class="refresh-btn" title="Refresh App">
-            🔄
+          <button id="refresh-app" class="refresh-btn" title="Update App">
+            <i class="fas fa-sync-alt"></i>
           </button>
         </div>
 
@@ -153,7 +160,7 @@
         </div>
       </div>
 
-      <!-- Scorecard Modal -->
+      <!-- Enhanced Scorecard Modal -->
       <div id="scorecard-modal" class="modal">
         <div class="modal-content scorecard-modal-content">
           <div class="modal-header">
@@ -161,7 +168,7 @@
             <button id="close-scorecard" class="close-btn">×</button>
           </div>
           <div id="scorecard-content">
-            <!-- Scorecard will be generated here -->
+            <!-- Enhanced scorecard will be generated here -->
           </div>
         </div>
       </div>
