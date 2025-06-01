@@ -261,76 +261,102 @@ class GolfApp {
     const newScore = Math.max(1, currentScore + adjustment);
 
     this.gameState.scores[playerIndex][this.gameState.currentHole] = newScore;
-    this.calculateHolePoints();
+    this.recalculateAllPoints(); // Fixed: Recalculate from scratch instead of adding
     this.generateScoreInputs();
     this.updateLeaderboard();
     this.saveGame();
   }
 
-  calculateHolePoints() {
-    if (!this.allScoresEntered()) return;
+  // NEW METHOD: Recalculate all points from scratch
+  recalculateAllPoints() {
+    // Reset points to starting values
+    this.gameState.players.forEach((player, index) => {
+      this.gameState.points[index] = player.startPoints;
+    });
 
+    // Clear hole results
+    this.gameState.holeResults = [];
+
+    // Recalculate points for each completed hole
+    for (let holeNum = 1; holeNum <= 18; holeNum++) {
+      if (this.allScoresEnteredForHole(holeNum)) {
+        this.calculatePointsForHole(holeNum);
+      }
+    }
+
+    // Display current hole results if they exist
+    if (this.gameState.holeResults[this.gameState.currentHole - 1]) {
+      this.displayHoleResults();
+    }
+  }
+
+  // Check if all scores are entered for a specific hole
+  allScoresEnteredForHole(holeNum) {
+    return this.gameState.players.every(
+      (_, index) => this.gameState.scores[index][holeNum] !== undefined
+    );
+  }
+
+  // Calculate points for a specific hole
+  calculatePointsForHole(holeNum) {
     const holeScores = this.gameState.players.map((player, index) => ({
       playerIndex: index,
-      score: this.gameState.scores[index][this.gameState.currentHole],
+      score: this.gameState.scores[index][holeNum],
       player: player.name,
     }));
 
     // Sort by score (ascending)
     holeScores.sort((a, b) => a.score - b.score);
 
-    // Reset points for this hole calculation
+    // Calculate points for this hole
     const holePoints = {};
     this.gameState.players.forEach((_, index) => {
       holePoints[index] = 0;
     });
 
-    // Assign position points
+    // Assign position points with proper tie handling
     const rules = this.gameState.rules;
-    const positions = [
-      rules.firstPoints,
-      rules.secondPoints,
-      rules.thirdPoints,
-    ];
 
-    for (let i = 0; i < holeScores.length; i++) {
+    let currentPosition = 0;
+    let i = 0;
+
+    while (i < holeScores.length) {
       const currentScore = holeScores[i].score;
       const tiedPlayers = holeScores.filter((p) => p.score === currentScore);
 
-      if (tiedPlayers.length === 1) {
-        // No tie
-        holePoints[holeScores[i].playerIndex] =
-          positions[Math.min(i, positions.length - 1)] || 0;
-      } else {
-        // Handle ties
-        const startPosition = i;
-        const endPosition = Math.min(
-          i + tiedPlayers.length - 1,
-          positions.length - 1
-        );
-        const totalPoints = positions
-          .slice(startPosition, endPosition + 1)
-          .reduce((sum, p) => sum + (p || 0), 0);
-        const avgPoints = totalPoints / tiedPlayers.length;
-
-        tiedPlayers.forEach((tp) => {
-          holePoints[tp.playerIndex] = avgPoints;
-        });
-
-        i += tiedPlayers.length - 1; // Skip the tied players
+      // Calculate average points for tied players
+      let totalPointsForTiedGroup = 0;
+      for (
+        let pos = currentPosition;
+        pos < currentPosition + tiedPlayers.length;
+        pos++
+      ) {
+        if (pos === 0) totalPointsForTiedGroup += rules.firstPoints;
+        else if (pos === 1) totalPointsForTiedGroup += rules.secondPoints;
+        else if (pos === 2) totalPointsForTiedGroup += rules.thirdPoints;
+        // Players beyond 3rd place get 0 points
       }
+
+      const avgPoints = totalPointsForTiedGroup / tiedPlayers.length;
+
+      // Assign points to all tied players
+      tiedPlayers.forEach((tp) => {
+        holePoints[tp.playerIndex] = avgPoints;
+      });
+
+      currentPosition += tiedPlayers.length;
+      i += tiedPlayers.length;
     }
 
     // Add bonus points
-    const par = this.course.holes[this.gameState.currentHole - 1].par;
+    const par = this.course.holes[holeNum - 1].par;
     holeScores.forEach(({ playerIndex, score }) => {
       const scoreToPar = score - par;
 
       if (score === 1) {
         // Hole in one
         if (rules.hioWin) {
-          // Instant win logic could be implemented here
-          holePoints[playerIndex] += 10; // Arbitrary large bonus
+          holePoints[playerIndex] += 10; // Large bonus for HIO
         }
       } else if (scoreToPar === -2) {
         // Eagle
@@ -341,29 +367,30 @@ class GolfApp {
       }
     });
 
-    // Update total points
+    // Add hole points to total points
     Object.keys(holePoints).forEach((playerIndex) => {
       this.gameState.points[playerIndex] += holePoints[playerIndex];
     });
 
     // Store hole results
-    this.gameState.holeResults[this.gameState.currentHole - 1] = {
-      hole: this.gameState.currentHole,
+    this.gameState.holeResults[holeNum - 1] = {
+      hole: holeNum,
       results: holeScores.map(({ playerIndex, score, player }) => ({
         player,
         score,
         points: holePoints[playerIndex],
       })),
     };
+  }
 
-    this.displayHoleResults();
+  // OLD METHOD - REMOVED
+  calculateHolePoints() {
+    // This method is replaced by recalculateAllPoints()
+    return;
   }
 
   allScoresEntered() {
-    return this.gameState.players.every(
-      (_, index) =>
-        this.gameState.scores[index][this.gameState.currentHole] !== undefined
-    );
+    return this.allScoresEnteredForHole(this.gameState.currentHole);
   }
 
   displayHoleResults() {
@@ -371,7 +398,10 @@ class GolfApp {
     const holeResult =
       this.gameState.holeResults[this.gameState.currentHole - 1];
 
-    if (!holeResult) return;
+    if (!holeResult) {
+      container.innerHTML = "";
+      return;
+    }
 
     container.innerHTML = `
           <div class="hole-result">
@@ -406,6 +436,7 @@ class GolfApp {
     this.gameState.currentHole = newHole;
     this.updateGameDisplay();
     this.generateScoreInputs();
+    this.displayHoleResults(); // Show results for the new hole
     this.saveGame();
   }
 
@@ -628,6 +659,7 @@ class GolfApp {
             this.switchScreen("game-screen");
             this.updateGameDisplay();
             this.generateScoreInputs();
+            this.displayHoleResults();
           }
         }
       } catch (e) {
